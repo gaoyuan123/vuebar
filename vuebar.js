@@ -12,6 +12,7 @@
     var Vuebar = {};
     Vuebar.install = function(Vue, installOptions){
 
+        const passive = testPassive() ? { passive: true } : false;
 
         /*------------------------------------*\
             Custom Directive Name
@@ -439,8 +440,8 @@
                 addClass(state.el1, state.config.el1DraggingPhantomClass);
 
                 // add events
-                document.addEventListener('mousemove', state.documentMousemove, 0);
-                document.addEventListener('mouseup', state.documentMouseup, 0);
+                document.addEventListener('mousemove', state.documentMousemove, passive);
+                document.addEventListener('mouseup', state.documentMouseup, passive);
 
 
             }.bind(this);
@@ -571,10 +572,10 @@
             // add events
             // - wheel event is only needed when preventParentScroll option is enabled
             // - resize event is only needed when resizeRefresh option is enabled
-            state.el2.addEventListener('scroll', state.scrollHandler, 0);
-            state.dragger.addEventListener('mousedown', state.barMousedown, 0);
+            state.el2.addEventListener('scroll', state.scrollHandler, passive);
+            state.dragger.addEventListener('mousedown', state.barMousedown, passive);
             state.config.preventParentScroll ? state.el2.addEventListener('wheel', state.wheelHandler, 0) : null;
-            state.config.resizeRefresh ? window.addEventListener('resize', state.windowResize, 0) : null;
+            state.config.resizeRefresh ? window.addEventListener('resize', state.windowResize, passive) : null;
 
             // initial calculations using refresh scrollbar
             refreshScrollbar(el, {immediate: true});
@@ -593,10 +594,10 @@
             if (!state) return;
 
             // clear events
-            state.dragger.removeEventListener('mousedown', state.barMousedown, 0);
-            state.el2.removeEventListener('scroll', state.scrollHandler, 0);
-            state.el2.removeEventListener('wheel', state.wheelHandler, 0);
-            window.removeEventListener('resize', state.windowResize, 0);
+            state.dragger.removeEventListener('mousedown', state.barMousedown, passive);
+            state.el2.removeEventListener('scroll', state.scrollHandler, passive);
+            state.el2.removeEventListener('wheel', state.scrollHandler, 0);
+            window.removeEventListener('resize', state.windowResize, passive);
 
             // disconnect mutation observer
             state.mutationObserver ? state.mutationObserver.disconnect() : null;
@@ -836,37 +837,53 @@
             - accepts "container" paremeter because ie & edge can have different
               scrollbar behaviors for different elements using '-ms-overflow-style'
         \*------------------------------------*/
+        let globalBarWith = 0;
         function getNativeScrollbarWidth(container) {
+            if(globalBarWith){
+                return globalBarWith;
+            }
             var container = container ? container : document.body;
 
-            var fullWidth = 0;
+            var fullWidth = 100;
             var barWidth = 0;
 
             var wrapper = document.createElement('div');
             var child = document.createElement('div');
 
+            child.style.width = '100%';
             wrapper.style.position = 'absolute';
             wrapper.style.pointerEvents = 'none';
             wrapper.style.bottom = '0';
             wrapper.style.right = '0';
-            wrapper.style.width = '100px';
-            wrapper.style.overflow = 'hidden';
+            wrapper.style.width = `${fullWidth}px`;
+            wrapper.style.overflow = 'scroll';
 
             wrapper.appendChild(child);
             container.appendChild(wrapper);
 
-            fullWidth = child.offsetWidth;
-            child.style.width = '100%';
-            wrapper.style.overflowY = 'scroll';
             barWidth = fullWidth - child.offsetWidth;
 
             container.removeChild(wrapper);
 
-            return barWidth;
+            return globalBarWith = barWidth;
         }
 
 
 
+        function testPassive() {
+            let supportsPassive = false;
+            try {
+                const opts = Object.defineProperty({}, 'passive', {
+                    get() {
+                        supportsPassive = true;
+                    },
+                });
+                window.addEventListener('testPassive', null, opts);
+                window.removeEventListener('testPassive', null, opts);
+            } catch (e) {}
+        
+            return supportsPassive;
+        }
 
     };
 
